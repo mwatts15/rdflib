@@ -835,7 +835,10 @@ class Literal(Identifier):
                     return self.language > other.language
 
             if self.value != None and other.value != None:
-                return self.value > other.value
+                try:
+                    return self.value > other.value
+                except TypeError:
+                    pass
 
             if unicode(self) != unicode(other):
                 return unicode(self) > unicode(other)
