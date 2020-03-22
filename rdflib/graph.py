@@ -1934,8 +1934,8 @@ def _assertnode(*terms):
 
 class BatchAddGraph(ObjectProxy):
     '''
-    Wrapper around graph that turns calls to :meth:`add` (and optionally, :meth:`addN`)
-    into calls to :meth:`~rdflib.graph.Graph.addN`.
+    Proxy for `~rdflib.graph.Graph` that turns calls to :meth:`add` (and optionally,
+    :meth:`addN`) into calls to :meth:`~rdflib.graph.Graph.addN`.
 
     :Parameters:
 
@@ -1953,7 +1953,7 @@ class BatchAddGraph(ObjectProxy):
     def __init__(self, graph, buffer_size=1000, buffer_addn=True):
         super(BatchAddGraph, self).__init__(graph)
         if not buffer_size or buffer_size < 2:
-            raise ValueError("buffer_size must be a at least two")
+            raise ValueError("buffer_size must be at least two")
         self._self_graph_tuple = (graph,)
         self._self_buffer_size = buffer_size
         self._self_buffer_addn = buffer_addn

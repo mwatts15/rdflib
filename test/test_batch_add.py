@@ -132,3 +132,10 @@ class TestBatchAddGraph(unittest.TestCase):
         cut.add((URIRef('a'), URIRef('b'), URIRef('c')))
         cut.flush()
         self.assertEqual(len(cut._self_buffer), 0)
+
+    def test_count(self):
+        g = Graph()
+
+        cut = BatchAddGraph(g, buffer_size=2)
+        cut.add((URIRef('a'), URIRef('b'), URIRef('c')))
+        self.assertEqual(cut.count, 1)
