@@ -269,6 +269,7 @@ import tempfile
 from six import BytesIO
 from six import b
 from six.moves.urllib.parse import urlparse
+from wrapt import ObjectProxy
 
 __all__ = [
     'Graph', 'ConjunctiveGraph', 'QuotedGraph', 'Seq',
@@ -1931,7 +1932,7 @@ def _assertnode(*terms):
     return True
 
 
-class BatchAddGraph(object):
+class BatchAddGraph(ObjectProxy):
     '''
     Wrapper around graph that turns calls to :meth:`add` (and optionally, :meth:`addN`)
     into calls to :meth:`~rdflib.graph.Graph.addN`.
@@ -1939,55 +1940,80 @@ class BatchAddGraph(object):
     :Parameters:
 
       - `graph`: The graph to wrap
-      - `batch_size`: The maximum number of triples to buffer before passing to
-        `graph`'s `addN`
-      - `batch_addn`: If True, then even calls to `addN` will be batched according to
-        `batch_size`
+      - `buffer_size`: The maximum number of triples to buffer before passing to
+        `graph`'s `addN`. This must be at least 2.
+      - `buffer_addn`: If True, then even calls to `addN` will be buffered according to
+        `buffer_size`
 
-    :ivar graph: The wrapped graph
     :ivar count: The number of triples buffered since initaialization or the last call
                  to :meth:`reset`
-    :ivar batch: The current buffer of triples
 
     '''
 
-    def __init__(self, graph, batch_size=1000, batch_addn=False):
-        if not batch_size or batch_size < 2:
-            raise ValueError("batch_size must be a positive number")
-        self.graph = graph
-        self.__graph_tuple = (graph,)
-        self.__batch_size = batch_size
-        self.__batch_addn = batch_addn
+    def __init__(self, graph, buffer_size=1000, buffer_addn=True):
+        super(BatchAddGraph, self).__init__(graph)
+        if not buffer_size or buffer_size < 2:
+            raise ValueError("buffer_size must be a at least two")
+        self._self_graph_tuple = (graph,)
+        self._self_buffer_size = buffer_size
+        self._self_buffer_addn = buffer_addn
         self.reset()
+
+    @property
+    def count(self):
+        return self._self_count
 
     def reset(self):
         '''
         Manually clear the buffered triples and reset the count to zero
         '''
-        self.batch = []
-        self.count = 0
+        self._self_buffer = []
+        self._self_count = 0
 
     def add(self, triple_or_quad):
         '''
-        Add a triple to the buffer
+        Add a triple or quad to the buffer
 
-        :param triple: The triple to add
+        :param triple: The triple/quad to add
         '''
-        if len(self.batch) >= self.__batch_size:
-            self.graph.addN(self.batch)
-            self.batch = []
-        self.count += 1
+        if len(self._self_buffer) >= self._self_buffer_size:
+            self.__wrapped__.addN(self._self_buffer)
+            self._self_buffer = []
+        self._self_count += 1
         if len(triple_or_quad) == 3:
-            self.batch.append(triple_or_quad + self.__graph_tuple)
+            self._self_buffer.append(triple_or_quad + self._self_graph_tuple)
         else:
-            self.batch.append(triple_or_quad)
+            self._self_buffer.append(triple_or_quad)
 
     def addN(self, quads):
-        if self.__batch_addn:
+        '''
+        Either add triples to buffer or to the graph depending on whether
+        `_self_buffer_addn` is True
+        '''
+        if self._self_buffer_addn:
             for q in quads:
                 self.add(q)
         else:
-            self.graph.addN(quads)
+            self.__wrapped__.addN(quads)
+
+    def update(self, *args, **kwargs):
+        return type(self.__wrapped__).update(self, *args, **kwargs)
+
+    def get_context(self, identifier, quoted=False):
+        return BatchAddGraph(
+                self.__wrapped__.get_context(identifier, quoted),
+                self._self_buffer_size,
+                self._self_buffer_addn)
+
+    def flush(self):
+        '''
+        Add all buffered triples to the underlying graph
+        '''
+        self.__wrapped__.addN(self._self_buffer)
+        self._self_buffer = []
+
+    def __iadd__(self, other):
+        return type(self.__wrapped__).__iadd__(self, other)
 
     def __enter__(self):
         self.reset()
@@ -1995,7 +2021,7 @@ class BatchAddGraph(object):
 
     def __exit__(self, *exc):
         if exc[0] is None:
-            self.graph.addN(self.batch)
+            self.flush()
 
 
 def test():

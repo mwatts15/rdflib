@@ -5,10 +5,11 @@ import re
 from setuptools import setup, find_packages
 
 kwargs = {}
-kwargs['install_requires'] = [ 'six', 'isodate', 'pyparsing']
+kwargs['install_requires'] = ['six', 'isodate', 'pyparsing', 'wrapt']
 kwargs['tests_require'] = ['html5lib', 'networkx']
 kwargs['test_suite'] = "nose.collector"
 kwargs['extras_require'] = {'html': ['html5lib'], 'sparql': ['requests']}
+
 
 def find_version(filename):
     _version_re = re.compile(r'__version__ = "(.*)"')
@@ -16,6 +17,7 @@ def find_version(filename):
         version_match = _version_re.match(line)
         if version_match:
             return version_match.group(1)
+
 
 version = find_version('rdflib/__init__.py')
 
@@ -76,8 +78,8 @@ Read the docs at:
    http://rdflib.readthedocs.io
 
     """,
-    packages = packages,
-    entry_points = {
+    packages=packages,
+    entry_points={
         'console_scripts': [
             'rdfpipe = rdflib.tools.rdfpipe:main',
             'csv2rdf = rdflib.tools.csv2rdf:main',
